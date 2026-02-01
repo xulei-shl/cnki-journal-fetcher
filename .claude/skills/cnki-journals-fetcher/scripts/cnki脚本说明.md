@@ -106,10 +106,7 @@ python cnki_spider.py -u "https://navi.cnki.net/knavi/journals/ZGTS/detail" -y 2
     "pages": "1-12",
     "abstract_url": "https://kns.cnki.net/kcms2/article/abstract?uniplatform=NZKPT&...",
     "abstract": "随着人工智能技术的快速发展...",
-    "keywords": "深度学习; 知识发现; 图书馆; 数据挖掘",
     "doi": "10.12345/example.2025.06.001",
-    "fund": "国家社会科学基金项目(23BTQ012)",
-    "authors_detail": "张三（教授），研究方向：数字图书馆；李四（副教授）..."
   }
 ]
 ```
