@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash",
+      "Skill",
+      "Edit",
+      "ExitPlanMode",
+      "Write"
+    ],
+    "deny": [
+      "Task(paper-multi-dimension)"
+    ]
+  }
+}
