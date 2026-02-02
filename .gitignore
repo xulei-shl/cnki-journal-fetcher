@@ -1,0 +1,7 @@
+# datas/
+*/backup/
+
+# Auto Claude data directory
+outputs/
+#  docs/
+__pycache__/
