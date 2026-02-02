@@ -39,6 +39,7 @@ allowed-tools: "Read, Edit, Write, Bash, Glob, Grep, AskUserQuestion, Task"
 | 直接关键词 | 模式 A | "更新 memory 智能客服, 知识问答" |
 | 期刊名 + 可选期数 | 模式 B | "更新 memory 中国图书馆学报 最新2期" |
 | 期刊名 + 年期 | 模式 C | "更新 memory 中国图书馆学报 2025-5" |
+| 排除关键词提取 | 模式 D | "更新 memory 排除词 中国图书馆学报 2025-5" |
 | 无参数 | 询问模式 | "更新 memory" |
 
 ---
@@ -116,6 +117,46 @@ allowed-tools: "Read, Edit, Write, Bash, Glob, Grep, AskUserQuestion, Task"
 4. **提取关键词**（同模式 B）
 
 5. 执行"统一更新流程"
+
+---
+
+### 模式 D：提取排除关键词
+
+从论文数据中提取"排除关键词"，用于过滤不相关论文。
+
+**触发条件（关键）**：
+- 仅当论文是 **paper-filter 自动标记为相关**（`interest_match = true`）
+- **用户人工修改为不相关**（`interest_match = false`）
+- 这些论文才被提取排除关键词
+
+**排除条件**：
+- paper-filter 本来就标记为不相关的论文 → 不提取
+- 用户手动将不相关改为相关的论文 → 不提取
+
+**执行流程**：
+
+1. **解析参数**
+   - 期刊名：必需
+   - 年期：必需
+
+2. **定位数据文件**
+   ```bash
+   # 检查文件是否存在
+   outputs/{期刊名}/{年-期}.json
+   ```
+
+3. **提取排除关键词**
+   ```bash
+   python {baseDir}/.claude/skills/memory-updater/scripts/extract_exclude_keywords.py \
+     outputs/{期刊名}/{年-期}.json
+   ```
+
+4. **显示候选词并确认**
+   - 显示高频候选词
+   - 标记已存在的排除关键词
+   - 用户选择后更新
+
+5. **执行排除关键词更新流程**（见下文）
 
 ---
 
@@ -212,16 +253,99 @@ Read {baseDir}/MEMORY.md
 📁 已更新: {baseDir}/MEMORY.md
 ```
 
+---
+
+## 排除关键词更新流程
+
+**适用模式**：模式 D
+
+### 1. 读取 MEMORY.md，解析现有排除关键词
+
+```bash
+Read {baseDir}/MEMORY.md
+```
+
+提取"排除关键词"行（如果不存在，创建新行）：
+- 支持逗号、顿号、空格分隔
+- 去除注释（时间戳）
+- 去重、去空
+
+### 2. 运行提取脚本
+
+```bash
+python {baseDir}/.claude/skills/memory-updater/scripts/extract_exclude_keywords.py \
+  outputs/{期刊名}/{年-期}.json
+```
+
+### 3. 显示候选词列表
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💾 排除关键词更新建议
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+发现 5 篇误判论文（AI 标记为相关，但用户改为不相关）
+
+📊 候选排除关键词（频率 >= 1）：
+
+排名 | 频次 | 关键词
+-----
+  1.  [ ] |  3   | 元宇宙
+  2.  [ ] |  2   | 公共图书馆
+  3.  [✓] |  2   | 阅读推广
+  4.  [ ] |  1   | 城乡服务
+
+📋 当前排除关键词:
+  元宇宙、公共图书馆、阅读推广
+
+请选择要添加的排除关键词:
+  • 输入编号选择（如 "1,4"）
+  • 输入 "all" 选择所有未选中的
+  • 输入 "none" 跳过更新
+```
+
+### 4. 更新 MEMORY.md
+
+使用 Edit 工具更新"排除关键词"行：
+
+```markdown
+- 排除关键词：元宇宙、公共图书馆、城乡服务一体化、阅读推广、青少年服务 # 更新于 2026-02-02
+```
+
+### 5. 显示结果总结
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 排除关键词更新完成
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 更新统计
+┌─────────────────────────────────────┐
+│ 原有排除词  │ XX 个                  │
+│ 新增排除词  │ XX 个                  │
+│ 总计        │ XX 个                  │
+└─────────────────────────────────────┘
+
+✅ 新增排除关键词:
+  城乡服务一体化
+
+📁 已更新: {baseDir}/MEMORY.md
+```
+
+---
+
 ## 错误处理
 
 | 错误场景 | 处理方式 |
 |---------|---------|
 | MEMORY.md 不存在 | 提示用户创建或跳过更新 |
 | 找不到"关注主题词"行 | 在文件末尾追加新段落 |
+| 找不到"排除关键词"行 | 创建新行（模式 D） |
 | 新关键词为空 | 跳过更新步骤 |
 | 用户选择 "none" | 不执行更新 |
-| outputs 目录不存在（模式 B/C） | 提示降级到模式 A |
-| JSON 文件不存在（模式 C） | 提示检查路径或切换模式 |
+| outputs 目录不存在（模式 B/C/D） | 提示降级到模式 A |
+| JSON 文件不存在（模式 C/D） | 提示检查路径或切换模式 |
+| 未提取到候选排除词（模式 D） | 提示可能没有误判论文或已全部排除 |
 
 ## 常量定义
 
@@ -229,6 +353,7 @@ Read {baseDir}/MEMORY.md
 |------|-----|
 | MEMORY.md 路径 | `{baseDir}/MEMORY.md` |
 | 提取脚本路径 | `{baseDir}/.claude/skills/memory-updater/scripts/extract_keywords.py` |
+| 排除词提取脚本 | `{baseDir}/.claude/skills/memory-updater/scripts/extract_exclude_keywords.py` |
 | 数据目录 | `{baseDir}/outputs/` |
 | 默认期数（模式 B） | 2 |
 
@@ -237,10 +362,21 @@ Read {baseDir}/MEMORY.md
 本 skill 可被其他 skill/subagent 调用：
 
 **调用示例**（从 cnki-journals-fetcher 步骤 10.2）：
+
+**模式 C（更新关注主题词）**：
 ```
 Task(
     subagent_type="memory-updater-agent",
     description="更新 MEMORY.md 研究关键词",
     prompt="使用模式 C，从 {期刊名} {年-期}.json 中提取关键词并更新 MEMORY.md"
+)
+```
+
+**模式 D（提取排除关键词）**：
+```
+Task(
+    subagent_type="memory-updater-agent",
+    description="提取排除关键词",
+    prompt="使用模式 D，从 {期刊名} {年-期}.json 中提取排除关键词并更新 MEMORY.md"
 )
 ```
